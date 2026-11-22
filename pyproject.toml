@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "watchcodes-repoatlas"
+version = "0.1.0"
+description = "RepoAtlas: discovery records, URL validation, and ordered migration queue."
+requires-python = ">=3.11"
+dependencies = ["jsonschema>=4.21,<5"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<9", "ruff>=0.9,<1"]
+
+[tool.setuptools]
+packages = ["repoatlas"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
