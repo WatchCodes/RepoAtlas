@@ -7,6 +7,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: WatchCodes/CodeFoundry
+          path: _deps/CodeFoundry
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -15,4 +19,6 @@ jobs:
           python -m pip install -U pip
           if [ -f pyproject.toml ]; then pip install -e '.[dev]'; fi
       - name: Test
+        env:
+          WATCHCODES_SCHEMAS_DIR: ${{ github.workspace }}/_deps/CodeFoundry/schemas
         run: python -m pytest -q
