@@ -13,6 +13,34 @@ _DEST_OWNER_RE = re.compile(r"^[A-Za-z0-9-]+$")
 _BATCH_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
+# Discovery-scope classification. common.definitions.json permits only these
+# three origin values; a raw owner.lower() is not a valid provenance.origin.
+# Precedence: Nous lineage (owner) wins over a 'hermes' token in the repo name,
+# because README states NousResearch/* stays in the Nous lineage.
+_NOUS_OWNERS = frozenset({"nousresearch"})
+# Roots explicitly documented in README as having no Nastech relationship.
+# Keep the current fail-closed behaviour: they must not enter the queue.
+_OUT_OF_SCOPE_ROOTS = frozenset({"plastic-labs/honcho", "burntsushi/ripgrep"})
+
+
+def _origin_for(repo: str) -> str:
+    """Map an owner/repo to a valid provenance.origin enum value.
+
+    Everything not explicitly Nous or Hermes is 'allowlisted' (the curated
+    in-scope set), never the raw owner name. Out-of-scope roots are filtered by
+    build_migration_requests before this is called.
+    """
+    owner, name = repo.split("/", 1)
+    owner_l = owner.lower()
+    name_l = name.lower()
+    if owner_l in _NOUS_OWNERS or "nous" in owner_l:
+        return "nous"
+    if "hermes" in owner_l or "hermes" in name_l:
+        return "hermes"
+    if "nous" in name_l:
+        return "nous"
+    return "allowlisted"
+
 
 class QueueValidationError(ValueError):
     """Raised when queue inputs fail closed validation."""
@@ -93,6 +121,8 @@ def build_migration_requests(manifest: dict[str, Any], *, destination_owner: str
     seen_targets: dict[str, str] = {}
     requests: list[dict[str, Any]] = []
     for repo in repos:
+        if repo.lower() in _OUT_OF_SCOPE_ROOTS:
+            continue
         owner, name = repo.split("/", 1)
         rn = canonical_target_name(name, owner=owner)
         _require(isinstance(rn.target, str) and bool(rn.target), f"invalid rename target for {repo!r}")
@@ -119,7 +149,7 @@ def build_migration_requests(manifest: dict[str, Any], *, destination_owner: str
             "license": "NOASSERTION",
             "action": "create",
             "provenance": {
-                "origin": owner.lower(),
+                "origin": _origin_for(repo),
                 "discovered_in": source,
                 "manifest_batch_id": batch_id,
             },

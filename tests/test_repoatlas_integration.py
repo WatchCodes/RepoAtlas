@@ -36,9 +36,7 @@ def _assert_migration_request_shape(req: dict) -> None:
     assert {"origin", "discovered_in"}.issubset(req["provenance"].keys())
 
     ok, errs = is_valid("migration-request", req)
-    if not ok:
-        # Current queue emits owner.lower() as origin; schema enum is hermes|nous|allowlisted.
-        assert all("provenance.origin" in e or "is not one of ['hermes', 'nous', 'allowlisted']" in e for e in errs), errs
+    assert ok, errs
 
 
 def _manifest(
@@ -120,7 +118,7 @@ def test_manifest_intake_produces_migration_request_shaped_output(tmp_path):
     assert hermes["sha"] == "a" * 40
     assert hermes["action"] == "create"
     assert hermes["provenance"] == {
-        "origin": "nousresearch",
+        "origin": "nous",
         "discovered_in": "nastechresearch/hermes-agent",
         "manifest_batch_id": "batch-intake-001",
     }
