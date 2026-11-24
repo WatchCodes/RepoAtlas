@@ -126,6 +126,12 @@ def build_migration_requests(manifest: dict[str, Any], *, destination_owner: str
         owner, name = repo.split("/", 1)
         rn = canonical_target_name(name, owner=owner)
         _require(isinstance(rn.target, str) and bool(rn.target), f"invalid rename target for {repo!r}")
+        # The rename engine already refused this name; emitting it as an
+        # approved create request would bypass that human-review decision.
+        if rn.status == "REQUIRES_REVIEW":
+            raise QueueValidationError(
+                f"target for {repo!r} requires review: {rn.reason or 'unspecified'}"
+            )
         target = rn.target
 
         target_key = target.lower()
