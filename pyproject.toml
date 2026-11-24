@@ -9,6 +9,9 @@ description = "RepoAtlas: discovery records, URL validation, and ordered migrati
 requires-python = ">=3.11"
 dependencies = ["jsonschema>=4.21,<5"]
 
+[project.scripts]
+repoatlas = "repoatlas.cli:main"
+
 [project.optional-dependencies]
 dev = ["pytest>=8.3,<9", "ruff>=0.9,<1"]
 
