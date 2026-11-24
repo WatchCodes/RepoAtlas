@@ -176,3 +176,44 @@ def test_cli_missing_file_fails_closed(capsys):
     out = json.loads(capsys.readouterr().out)
     assert rc == 1
     assert out["ok"] is False
+
+
+def _report_with_checkpoints(checkpoints):
+    return {
+        "schema_version": 1,
+        "batch_id": "b1",
+        "source": "Owner/Repo",
+        "destination": "WatchCodes/nastech-repo",
+        "status": "REQUIRES_REVIEW",
+        "checks": {
+            "created": False, "named": True, "owned": True,
+            "gated": True, "license_kept": True, "credits": True,
+        },
+        "receipt": {
+            "idempotency_key": "b1::Owner/Repo",
+            "destination_repo_id": 1,
+            "source_sha": "a" * 40,
+            "destination_sha": "b" * 40,
+            "checkpoints": checkpoints,
+        },
+        "license": {"detected": "MIT", "preserved": True},
+        "attribution": {"notice": True, "credits": True},
+        "error": "checks not satisfied: created",
+    }
+
+
+def test_migration_report_accepts_every_codefoundry_checkpoint_stage():
+    stages = (
+        "start", "validate", "receipt", "scan", "license", "clone",
+        "brand", "credits", "gate", "ship", "report",
+    )
+    checkpoints = [{"stage": s, "at": "2026-11-24T00:00:00Z", "ok": True} for s in stages]
+    ok, errors = contracts.is_valid("migration-report", _report_with_checkpoints(checkpoints))
+    assert ok, errors
+
+
+def test_migration_report_still_rejects_unknown_checkpoint_stage():
+    checkpoints = [{"stage": "not_a_real_stage", "at": "2026-11-24T00:00:00Z", "ok": True}]
+    ok, errors = contracts.is_valid("migration-report", _report_with_checkpoints(checkpoints))
+    assert ok is False
+    assert any("not_a_real_stage" in e for e in errors)
