@@ -5,6 +5,7 @@ import hashlib
 import re
 from typing import Any
 
+from .classify import KIND_TEST_FIXTURE, classify_url
 from .contracts import validate
 from .rename import canonical_target_name, ext_collision_name
 
@@ -21,6 +22,27 @@ _NOUS_OWNERS = frozenset({"nousresearch"})
 # Roots explicitly documented in README as having no Nastech relationship.
 # Keep the current fail-closed behaviour: they must not enter the queue.
 _OUT_OF_SCOPE_ROOTS = frozenset({"plastic-labs/honcho", "burntsushi/ripgrep"})
+
+
+def _fixture_only_repo_keys(manifest: dict[str, Any]) -> set[str]:
+    """Repositories whose every URL occurrence is an excluded test fixture.
+
+    Suppress an expected repository only when there is positive fixture
+    evidence for that exact repository and no other URL evidence for it. A repo
+    with no matching URL keeps its existing queue behaviour, so this never
+    invents an exclusion from silence.
+    """
+    by_repo: dict[str, set[str]] = {}
+    for item in manifest.get("urls", []):
+        result = classify_url(item["url"])
+        repo = result.get("repository")
+        if not isinstance(repo, str) or not repo:
+            continue
+        by_repo.setdefault(repo.lower(), set()).add(str(result.get("kind")))
+    return {
+        key for key, kinds in by_repo.items()
+        if kinds and all(kind == KIND_TEST_FIXTURE for kind in kinds)
+    }
 
 
 def _origin_for(repo: str) -> str:
@@ -117,10 +139,13 @@ def build_migration_requests(manifest: dict[str, Any], *, destination_owner: str
     _require(isinstance(destination_owner, str) and _DEST_OWNER_RE.match(destination_owner) is not None, "invalid destination_owner")
 
     repos = _dedupe_repo_refs(manifest.get("expected_repositories", []))
+    fixture_only = _fixture_only_repo_keys(manifest)
 
     seen_targets: dict[str, str] = {}
     requests: list[dict[str, Any]] = []
     for repo in repos:
+        if repo.lower() in fixture_only:
+            continue
         if repo.lower() in _OUT_OF_SCOPE_ROOTS:
             continue
         owner, name = repo.split("/", 1)
