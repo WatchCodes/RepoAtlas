@@ -7,9 +7,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Pinned CodeFoundry contract revision. Bump deliberately when the
+      # canonical schemas change; never follow the default branch implicitly.
       - uses: actions/checkout@v4
         with:
           repository: WatchCodes/CodeFoundry
+          ref: 2402de2cda3c4886f7deae5080b000e065177c52
           path: _deps/CodeFoundry
       - uses: actions/setup-python@v5
         with:
